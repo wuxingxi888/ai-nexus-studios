@@ -1,7 +1,7 @@
 services:
-  app:
-    image: ghcr.io/basketikun/infinite-canvas:latest
-    container_name: infinite-canvas
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
+    app:
+        image: ghcr.io/wuxingxi888/ai-nexus-studios:latest
+        container_name: ai-nexus-studios
+        ports:
+            - "127.0.0.1:3000:3000"
+        restart: unless-stopped
