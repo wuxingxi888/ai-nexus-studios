@@ -31,7 +31,7 @@ const kindOptions = [
     { label: "视频", value: "video" },
 ];
 
-export default function AssetsPage() {
+export function AssetsPage() {
     const { message } = App.useApp();
     const copyText = useCopyText();
     const [form] = Form.useForm<AssetFormValues>();

@@ -34,13 +34,18 @@
 
 - 前端使用 Next.js App Router、React、TypeScript、Ant Design、Tailwind、Zustand。
 - 编写 Ant Design 相关代码时，参考 https://ant.design/llms-full.txt 理解组件 API、示例和设计规范，并优先结合项目当前 antd 版本与既有写法。
+- `web/src/app/` 只放 Next.js 路由入口、`layout.tsx`、`route.ts`、全局样式和错误页；不要在 `app` 里放大块业务组件、store、复杂工具函数。
+- 业务代码默认放到 `web/src/features/<domain>/`，按产品领域组织，例如 `canvas`、`image`、`video`、`assets`、`prompts`、`home`。
+- App Router 的 `page.tsx` 优先保持 thin wrapper，只导入并渲染对应 feature 页面组件。
+- 单领域组件、store、utils、types 放在对应 `features/<domain>/` 内；确实跨多个领域复用时，才提升到 `components/`、`stores/`、`lib/`、`types/` 等全局目录。
+- 跨领域共享 UI 放 `web/src/components/`，基础 UI 放 `web/src/components/ui/`，全局布局组件放 `web/src/components/layout/`。
+- 目前不要引入 Monorepo、Turborepo 或额外 workspace 编排；只有出现共享包、跨包构建依赖或统一任务编排需求时，再单独规划。
 - API 请求统一放在 `web/src/services/api/`。
 - 全局或跨页面状态优先放在 `web/src/stores/`。
 - 已经放在全局 store 或全局 hook 中的状态/动作，组件需要时直接使用对应 store/hook，不要为了“纯组件”层层透传 props；避免一个组件传递过多参数。
 - 全局组件、全局常量、全局配置等全局性质的内容不要作为 props 或参数层层传递；哪里需要就在哪里直接从对应全局入口获取。
 - 多个页面重复出现的 UI 副作用动作，例如复制文本并提示、下载并提示、统一确认弹窗，优先抽成 `web/src/hooks/` 下的全局 hook；不要放进 store，除非它确实是需要共享/订阅的状态。
-- 画布相关状态和组件放在 `web/src/app/(user)/canvas/` 内部。
-- 页面里只有一个主业务组件时直接写在 `page.tsx`，不要单独拆 `Manager` 组件再传一堆 props。
+- `features/<domain>/` 内只有一个主业务组件时直接写在该 feature 页面组件文件里，不要再单独拆 `Manager` 组件传一堆 props；`app/**/page.tsx` 仍保持 thin wrapper。
 - 不要新增只做简单转发的组件，例如只 `return <X>{children}</X>` 或只换个名字透传 props；直接在使用处使用真实组件或把逻辑写进当前文件。
 - 页面私有 hook 放在对应页面目录下，例如 `admin/assets/use-admin-assets.ts`；只有多个页面真实复用的 hook 才放到外层 `hooks/`。
 - 管理后台页面私有组件放到各自页面目录的 `components/` 下，例如 `admin/assets/components/`、`admin/prompts/components/`；不要为了单页面使用放到 `admin/components/` 共享目录。

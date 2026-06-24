@@ -4,15 +4,15 @@ import { FolderPlus, Search } from "lucide-react";
 import { type UIEvent, useEffect, useState } from "react";
 import { App, Button, Empty, Input, Spin, Tag } from "antd";
 
-import { PromptCard } from "@/components/prompts/prompt-card";
-import { PromptDetailDialog } from "@/components/prompts/prompt-detail-dialog";
-import { usePromptList } from "@/components/prompts/use-prompt-list";
+import { PromptCard } from "@/features/prompts/components/prompt-card";
+import { PromptDetailDialog } from "@/features/prompts/components/prompt-detail-dialog";
+import { usePromptList } from "@/features/prompts/components/use-prompt-list";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
 
-export default function PromptsPage() {
+export function PromptsPage() {
     const { message } = App.useApp();
     const [titleKeyword, setTitleKeyword] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);

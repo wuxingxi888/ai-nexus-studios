@@ -19,33 +19,33 @@ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "../utils/canvas-image-data";
-import { fitNodeSize, nodeSizeFromRatio } from "../utils/canvas-node-size";
+import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "./utils/canvas-image-data";
+import { fitNodeSize, nodeSizeFromRatio } from "./utils/canvas-node-size";
 import { App, Button, Dropdown, Modal } from "antd";
-import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
-import { ActiveConnectionPath, ConnectionPath } from "../components/canvas-connections";
-import { CanvasConfigComposer } from "../components/canvas-config-composer";
-import { CanvasConfigNodePanel } from "../components/canvas-config-node-panel";
-import { CANVAS_AGENT_PANEL_MOTION_MS, CanvasAssistantPanel } from "../components/canvas-assistant-panel";
-import { CanvasNodeContextMenu } from "../components/canvas-context-menu";
-import { CanvasNodeAngleDialog, type CanvasImageAngleParams } from "../components/canvas-node-angle-dialog";
-import { CanvasNodeCropDialog, type CanvasImageCropRect } from "../components/canvas-node-crop-dialog";
-import { CanvasNodeMaskEditDialog, type CanvasImageMaskEditPayload } from "../components/canvas-node-mask-edit-dialog";
-import { CanvasNodeSplitDialog, type CanvasImageSplitParams } from "../components/canvas-node-split-dialog";
-import { CanvasNodeUpscaleDialog, type CanvasImageUpscaleParams } from "../components/canvas-node-upscale-dialog";
-import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext, type NodeGenerationInput } from "../components/canvas-node-generation";
-import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "../components/canvas-node-hover-toolbar";
-import { InfiniteCanvas } from "../components/infinite-canvas";
-import { Minimap } from "../components/canvas-mini-map";
-import { CanvasNode } from "../components/canvas-node";
-import { CanvasNodePromptPanel, type CanvasNodeGenerationMode } from "../components/canvas-node-prompt-panel";
-import { CanvasToolbar } from "../components/canvas-toolbar";
-import { AssetPickerModal, type InsertAssetPayload } from "../components/asset-picker-modal";
-import { CanvasZoomControls } from "../components/canvas-zoom-controls";
-import { useCanvasStore } from "../stores/use-canvas-store";
-import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "../utils/canvas-agent-ops";
-import { buildCanvasResourceReferences, buildNodeMentionReferences } from "../utils/canvas-resource-references";
-import type { CanvasAgentMode } from "../components/canvas-agent-chat-ui";
+import { NODE_DEFAULT_SIZE, getNodeSpec } from "./constants";
+import { ActiveConnectionPath, ConnectionPath } from "./components/canvas-connections";
+import { CanvasConfigComposer } from "./components/canvas-config-composer";
+import { CanvasConfigNodePanel } from "./components/canvas-config-node-panel";
+import { CANVAS_AGENT_PANEL_MOTION_MS, CanvasAssistantPanel } from "./components/canvas-assistant-panel";
+import { CanvasNodeContextMenu } from "./components/canvas-context-menu";
+import { CanvasNodeAngleDialog, type CanvasImageAngleParams } from "./components/canvas-node-angle-dialog";
+import { CanvasNodeCropDialog, type CanvasImageCropRect } from "./components/canvas-node-crop-dialog";
+import { CanvasNodeMaskEditDialog, type CanvasImageMaskEditPayload } from "./components/canvas-node-mask-edit-dialog";
+import { CanvasNodeSplitDialog, type CanvasImageSplitParams } from "./components/canvas-node-split-dialog";
+import { CanvasNodeUpscaleDialog, type CanvasImageUpscaleParams } from "./components/canvas-node-upscale-dialog";
+import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext, type NodeGenerationInput } from "./components/canvas-node-generation";
+import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "./components/canvas-node-hover-toolbar";
+import { InfiniteCanvas } from "./components/infinite-canvas";
+import { Minimap } from "./components/canvas-mini-map";
+import { CanvasNode } from "./components/canvas-node";
+import { CanvasNodePromptPanel, type CanvasNodeGenerationMode } from "./components/canvas-node-prompt-panel";
+import { CanvasToolbar } from "./components/canvas-toolbar";
+import { AssetPickerModal, type InsertAssetPayload } from "./components/asset-picker-modal";
+import { CanvasZoomControls } from "./components/canvas-zoom-controls";
+import { useCanvasStore } from "./stores/use-canvas-store";
+import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "./utils/canvas-agent-ops";
+import { buildCanvasResourceReferences, buildNodeMentionReferences } from "./utils/canvas-resource-references";
+import type { CanvasAgentMode } from "./components/canvas-agent-chat-ui";
 import {
     CanvasNodeType,
     type CanvasAssistantImage,
@@ -59,7 +59,7 @@ import {
     type Position,
     type SelectionBox,
     type ViewportTransform,
-} from "../types";
+} from "./types";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio } from "@/types/media";
 
@@ -125,7 +125,7 @@ function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: C
     };
 }
 
-export default function CanvasPage() {
+export function CanvasClientPage() {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {

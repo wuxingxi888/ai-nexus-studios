@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, Tooltip } from "antd";
 import { BookOpen } from "lucide-react";
 
-import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
+import { PromptSelectDialog } from "@/features/prompts/components/prompt-select-dialog";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 
