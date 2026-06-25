@@ -1,13 +1,24 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Images } from "lucide-react";
 import { useEffect, useState } from "react";
 import { App, Button, Image, Tag } from "antd";
 
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
 import { navigationTools } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
+import { AiDramaShowcase } from "./components/ai-drama-showcase";
 import { AdaptiveHeroBackground } from "./components/hero-background";
+
+const IMAGE_CASE_LAYOUTS = [
+    "md:col-span-6 md:row-span-2",
+    "md:col-span-6",
+    "md:col-span-3",
+    "md:col-span-3",
+    "md:col-span-4",
+    "md:col-span-4",
+    "md:col-span-4",
+];
 
 export function HomePage() {
     const { message } = App.useApp();
@@ -16,8 +27,11 @@ export function HomePage() {
     const [previewIndex, setPreviewIndex] = useState(0);
     const [previewOpen, setPreviewOpen] = useState(false);
 
+    const imageCases = promptShowcase.slice(0, 7);
+    const previewImages = imageCases.filter((item): item is Prompt & { coverUrl: string } => Boolean(item.coverUrl));
+
     useEffect(() => {
-        void fetchPrompts({ pageSize: 12 })
+        void fetchPrompts({ category: "davidwu-gpt-image2-prompts", pageSize: 12 })
             .then((data) => setPromptShowcase(data.items))
             .catch((error) => message.error(error instanceof Error ? error.message : "获取提示词失败"));
     }, [message]);
@@ -63,54 +77,66 @@ export function HomePage() {
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <section className="relative mx-auto mb-20 max-w-6xl border-t border-stone-200 px-6 pt-12 dark:border-stone-800">
-                    <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
-                        <div />
-                        <div className="max-w-2xl text-center">
-                            <h2 className="text-3xl font-semibold text-stone-950 dark:text-stone-100">沉淀每一次好结果</h2>
-                            <p className="mt-3 text-base leading-7 text-stone-500 dark:text-stone-400">收藏稳定出图的提示词、参考风格和结果图片，让下一次创作从已有经验开始。</p>
+            <section className="relative mx-auto max-w-7xl px-6 py-20">
+                <div className="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                    <div className="max-w-3xl">
+                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-xs font-medium text-stone-500 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-stone-400">
+                            <Images className="size-3.5" />
+                            图片案例
                         </div>
-                        <Button type="link" href="/prompts" className="justify-self-center md:justify-self-end" icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                            查看提示词库
-                        </Button>
+                        <h2 className="text-balance text-3xl font-semibold tracking-normal text-stone-950 dark:text-stone-100 sm:text-4xl">把灵感沉淀成可复用的视觉资产</h2>
+                        <p className="mt-4 max-w-2xl text-base leading-7 text-stone-500 dark:text-stone-400">从提示词、参考图到最终结果，案例不只是展示图，而是下一次画布编排和生图迭代的起点。</p>
                     </div>
-                    <div className="grid auto-rows-[210px] gap-4 md:grid-cols-4">
-                        {promptShowcase.map((item, index) => (
+                    <Button type="link" href="/prompts" className="self-start !px-0 md:self-auto" icon={<ArrowRight className="size-4" />} iconPlacement="end">
+                        查看提示词库
+                    </Button>
+                </div>
+
+                <div className="grid auto-rows-[220px] gap-5 md:grid-cols-12">
+                    {imageCases.map((item, index) => {
+                        const previewImageIndex = previewImages.findIndex((image) => image.id === item.id);
+                        return (
                             <button
                                 key={item.id}
                                 type="button"
                                 onClick={() => {
-                                    setPreviewIndex(index);
+                                    if (previewImageIndex < 0) return;
+                                    setPreviewIndex(previewImageIndex);
                                     setPreviewOpen(true);
                                 }}
                                 className={cn(
-                                    "group relative cursor-pointer overflow-hidden border border-stone-200 bg-stone-100 text-left dark:border-stone-800 dark:bg-stone-900",
-                                    index === 0 && "md:col-span-2 md:row-span-2",
-                                    index === 3 && "md:col-span-2",
+                                    "group relative !overflow-hidden rounded-3xl border border-white/70 bg-white/70 text-left shadow-[0_24px_70px_rgba(15,23,42,0.08)] ring-1 ring-stone-950/5 backdrop-blur transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(15,23,42,0.14)] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/10",
+                                    IMAGE_CASE_LAYOUTS[index] ?? "md:col-span-4",
                                 )}
+                                style={{ borderRadius: 28 }}
                             >
                                 {item.coverUrl ? (
-                                    <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                                    <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-stone-100 p-5 text-center text-sm leading-6 text-stone-500 dark:bg-stone-900 dark:text-stone-400">{item.title}</div>
+                                    <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_50%_0%,rgba(43,62,190,0.2),transparent_42%),#111017] p-6 text-center text-sm leading-6 text-white/70">{item.title}</div>
                                 )}
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent p-4 text-white">
-                                    <div className="mb-2 flex flex-wrap gap-1.5">
-                                        {item.tags.slice(0, 2).map((tag) => (
-                                            <Tag key={tag} variant="filled" className="m-0 bg-white/15 text-[11px] text-white backdrop-blur">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/22 to-transparent opacity-95" />
+                                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                                    <div className="mb-3 flex flex-wrap gap-1.5">
+                                        {(item.tags.length ? item.tags : ["AI 生成"]).slice(0, 2).map((tag) => (
+                                            <Tag key={tag} variant="filled" className="m-0 rounded-full border-white/[0.15] bg-white/[0.14] px-2.5 py-0.5 text-[11px] text-white backdrop-blur">
                                                 {tag}
                                             </Tag>
                                         ))}
                                     </div>
-                                    <h3 className="text-sm font-medium">{item.title}</h3>
-                                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/75">{item.prompt}</p>
+                                    <h3 className="line-clamp-1 text-base font-semibold">{item.title}</h3>
+                                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/72">{item.prompt}</p>
                                 </div>
                             </button>
-                        ))}
-                    </div>
-                </section>
+                        );
+                    })}
+                </div>
             </section>
+
+            <AiDramaShowcase />
+
             <Image.PreviewGroup
                 preview={{
                     open: previewOpen,
@@ -120,11 +146,9 @@ export function HomePage() {
                 }}
             >
                 <div className="hidden">
-                    {promptShowcase
-                        .filter((item) => item.coverUrl)
-                        .map((item) => (
-                            <Image key={item.id} src={item.coverUrl} alt={item.title} />
-                        ))}
+                    {previewImages.map((item) => (
+                        <Image key={item.id} src={item.coverUrl} alt={item.title} />
+                    ))}
                 </div>
             </Image.PreviewGroup>
         </main>

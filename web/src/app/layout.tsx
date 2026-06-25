@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     description: "面向 AI 创作的画布编排、图片生成和视频生成工作台",
 };
 
+// Avoid serving stale prerendered HTML after Docker image upgrades behind reverse proxies.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function RootLayout({
     children,
 }: Readonly<{
