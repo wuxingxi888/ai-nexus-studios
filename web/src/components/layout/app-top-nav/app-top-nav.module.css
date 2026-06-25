@@ -1,0 +1,129 @@
+.root {
+    pointer-events: none;
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    justify-content: center;
+    padding-inline: 0;
+    --nav-x-padding: 0px;
+    --nav-max-width: calc(100vw - var(--nav-x-padding) * 2);
+    --nav-y: 0px;
+    --nav-scale-x: 1;
+    --nav-scale-y: 1;
+    --nav-radius: 0px;
+    --nav-border-inline-width: 0px;
+    --nav-border-top-width: 0px;
+    --nav-bg: rgba(255, 255, 255, 0.24);
+    --nav-border: rgba(255, 255, 255, 0.14);
+    --nav-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+    --nav-blur: 22px;
+    --nav-saturate: 1.18;
+}
+
+.surface {
+    pointer-events: auto;
+    display: flex;
+    height: 64px;
+    width: 100%;
+    max-width: var(--nav-max-width);
+    transform: translate3d(0, var(--nav-y), 0) scale(var(--nav-scale-x), var(--nav-scale-y));
+    transform-origin: top center;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 20px;
+    border: 1px solid var(--nav-border);
+    border-top-width: var(--nav-border-top-width);
+    border-inline-width: var(--nav-border-inline-width);
+    border-radius: var(--nav-radius);
+    background-color: var(--nav-bg);
+    box-shadow: var(--nav-shadow);
+    backdrop-filter: blur(var(--nav-blur)) saturate(var(--nav-saturate));
+    -webkit-backdrop-filter: blur(var(--nav-blur)) saturate(var(--nav-saturate));
+    contain: layout paint style;
+    will-change: transform, max-width, border-radius;
+    transition:
+        max-width 560ms cubic-bezier(0.2, 1.35, 0.32, 1),
+        transform 560ms cubic-bezier(0.2, 1.35, 0.32, 1),
+        border-radius 560ms cubic-bezier(0.2, 1.35, 0.32, 1),
+        border-width 420ms ease,
+        background-color 260ms ease,
+        border-color 260ms ease,
+        box-shadow 260ms ease,
+        backdrop-filter 260ms ease;
+}
+
+.root[data-state="floating"] {
+    --nav-x-padding: 16px;
+    --nav-max-width: min(80rem, calc(100vw - var(--nav-x-padding) * 2));
+    --nav-y: 50px;
+    --nav-scale-x: 0.986;
+    --nav-scale-y: 0.975;
+    --nav-radius: 22px;
+    --nav-border-inline-width: 1px;
+    --nav-border-top-width: 1px;
+    --nav-bg: rgba(255, 255, 255, 0.38);
+    --nav-border: rgba(255, 255, 255, 0.2);
+    --nav-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+    --nav-blur: 28px;
+    --nav-saturate: 1.35;
+}
+
+.root[data-motion="float"] .surface {
+    animation: nav-float-pop 620ms cubic-bezier(0.18, 1.42, 0.28, 1) both;
+}
+
+.root[data-motion="dock"] .surface {
+    animation: nav-dock-pop 520ms cubic-bezier(0.2, 1.18, 0.32, 1) both;
+}
+
+:global(.dark) .surface {
+    --nav-border: rgba(255, 255, 255, 0.08);
+    --nav-bg: rgba(12, 10, 9, 0.3);
+}
+
+:global(.dark) .root[data-state="floating"] .surface {
+    --nav-border: rgba(255, 255, 255, 0.1);
+    --nav-bg: rgba(12, 10, 9, 0.48);
+}
+
+@media (min-width: 640px) {
+    .root[data-state="floating"] {
+        --nav-x-padding: 24px;
+    }
+}
+
+@keyframes nav-float-pop {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1, 1);
+    }
+    58% {
+        transform: translate3d(0, 54px, 0) scale(0.978, 0.968);
+    }
+    78% {
+        transform: translate3d(0, 48px, 0) scale(0.991, 0.982);
+    }
+    100% {
+        transform: translate3d(0, var(--nav-y), 0) scale(var(--nav-scale-x), var(--nav-scale-y));
+    }
+}
+
+@keyframes nav-dock-pop {
+    0% {
+        transform: translate3d(0, 50px, 0) scale(0.986, 0.975);
+    }
+    64% {
+        transform: translate3d(0, -2px, 0) scale(1.006, 1.012);
+    }
+    100% {
+        transform: translate3d(0, var(--nav-y), 0) scale(var(--nav-scale-x), var(--nav-scale-y));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .surface {
+        transition: none;
+        animation: none !important;
+    }
+}

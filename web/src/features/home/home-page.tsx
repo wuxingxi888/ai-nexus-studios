@@ -1,25 +1,13 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { App, Button, Image, Tag } from "antd";
 
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
 import { navigationTools } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
-
-function Highlighter({ action, color, children }: { action: "highlight" | "underline"; color: string; children: ReactNode }) {
-    return (
-        <span className="relative inline-block px-1">
-            {action === "highlight" ? (
-                <span className="absolute inset-x-0 bottom-0 top-1 rounded-sm opacity-45" style={{ backgroundColor: color }} />
-            ) : (
-                <span className="absolute inset-x-0 bottom-0 h-1 rounded-full opacity-80" style={{ backgroundColor: color }} />
-            )}
-            <span className="relative font-medium text-stone-800 dark:text-stone-200">{children}</span>
-        </span>
-    );
-}
+import { AdaptiveHeroBackground } from "./components/hero-background";
 
 export function HomePage() {
     const { message } = App.useApp();
@@ -35,28 +23,44 @@ export function HomePage() {
     }, [message]);
 
     return (
-        <main className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] text-stone-950 [background-size:16px_16px] dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)] dark:text-stone-100">
+        <main
+            data-nav-scroll-root
+            className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] text-stone-950 [background-size:16px_16px] dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)] dark:text-stone-100"
+        >
             <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
-                <div className="relative flex min-h-[620px] flex-col items-center justify-center pt-10 text-center">
-                    <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold tracking-normal sm:text-7xl lg:text-8xl">Nexus Studios</h1>
-                    <p className="mt-8 max-w-3xl text-balance text-lg leading-8 text-stone-500 dark:text-stone-400">
-                        在
-                        <Highlighter action="underline" color="#FF9800">
-                            Nexus Studios
-                        </Highlighter>
-                        中生成、连接和重组
-                        <Highlighter action="highlight" color="#87CEFA">
-                            图片、文字与图形
-                        </Highlighter>
-                        ，让创作从单次生成变成连续推演。
-                    </p>
-                    <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                        <Button type="primary" size="large" href={`/${primaryTool.slug}`} icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                            开始使用
-                        </Button>
-                        <Button size="large" href="/canvas">
-                            打开画布
-                        </Button>
+                <div className="absolute inset-x-0 top-0 h-[100vh] overflow-hidden rounded-none">
+                    <AdaptiveHeroBackground />
+                </div>
+
+                <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 pb-24 pt-36 text-center sm:pt-40">
+                    <div className="flex w-full max-w-5xl flex-col items-center gap-2 sm:gap-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/10 p-1 text-sm text-white/70 shadow-[0_18px_60px_rgba(8,8,30,0.24)] backdrop-blur-2xl">
+                            <span className="rounded-full bg-white px-3 py-1 font-semibold text-stone-950">NEW</span>
+                            <span className="pr-3 font-medium">Nexus Studios 创作工作区</span>
+                        </div>
+
+                        <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold leading-[1.03] tracking-normal text-white drop-shadow-[0_18px_50px_rgba(8,8,30,0.28)] sm:text-4xl lg:text-6xl">
+                            让灵感在画布上
+                            <br className="hidden sm:block" />
+                            连续生长
+                        </h1>
+
+                        <p className="max-w-3xl text-balance text-base leading-8 text-white/80 sm:text-lg">把画布编排、AI 图片生成、AI 视频生成、参考图编辑、对话助手和素材管理放进同一个流动工作区。</p>
+
+                        <div className="flex flex-wrap items-center justify-center gap-4 sm:mt-3">
+                            <Button
+                                href={`/${primaryTool.slug}`}
+                                className="!inline-flex !h-12 !min-w-36 !items-center !justify-center !rounded-2xl !border-0 !bg-white !px-6 !text-sm !font-semibold !leading-none !text-stone-950 !shadow-[0_14px_34px_rgba(255,255,255,0.14)] hover:!bg-white hover:!text-stone-950 sm:!h-14 sm:!min-w-40 sm:!px-7 sm:!text-base"
+                            >
+                                开始创作
+                            </Button>
+                            <Button
+                                href="/canvas"
+                                className="!inline-flex !h-12 !min-w-36 !items-center !justify-center !rounded-2xl !border !border-white/14 !bg-[rgba(111,59,221,0.22)] !px-6 !text-sm !font-semibold !leading-none !text-white/76 !shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05),0_12px_30px_rgba(42,8,92,0.2)] !backdrop-blur-2xl hover:!border-white/24 hover:!bg-[rgba(124,73,230,0.3)] hover:!text-white sm:!h-14 sm:!min-w-40 sm:!px-7 sm:!text-base"
+                            >
+                                打开画布
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

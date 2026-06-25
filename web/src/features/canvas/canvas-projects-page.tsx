@@ -57,8 +57,8 @@ export function CanvasProjectsPage() {
     };
 
     return (
-        <main className="h-full overflow-auto bg-background text-stone-950 dark:text-stone-100">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
+        <main data-nav-scroll-root className="app-nav-safe-top h-full overflow-auto bg-background text-stone-950 dark:text-stone-100">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-10">
                 <header className="flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-6 dark:border-stone-800">
                     <div>
                         <p className="text-xs text-stone-500">画布库</p>
