@@ -1,5 +1,5 @@
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
-import { seedanceReferenceLabel } from "@/lib/seedance-video";
+import { seedanceReferenceLabel } from "@/services/api/video/seedance";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "../types";
 
 export type CanvasResourceKind = "image" | "video" | "audio" | "text";
