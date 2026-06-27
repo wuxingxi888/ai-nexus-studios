@@ -1,11 +1,10 @@
-import axios from "axios";
-
+import { apiAxios } from "@/services/api/transport";
 import { modelOptionName, type AiConfig } from "@/stores/use-config-store";
 import { resolveImageReferenceUrl } from "../references";
 import { readVideoAxiosError, unwrapEnvelope, videoApiUrl, videoHeaders, videoResultFromUrl } from "../shared";
 import type { ApiEnvelope, OpenAIVideoResponse, VideoCreateInput, VideoGenerationTask, VideoGenerationTaskState, VideoProviderAdapter } from "../types";
 
-type OpenAIJsonVideoPayload = {
+type OpenAICompatibleVideoPayload = {
     model: string;
     prompt: string;
     seconds: string;
@@ -13,42 +12,44 @@ type OpenAIJsonVideoPayload = {
     input_reference?: string[];
 };
 
-export const openAIJsonVideoProvider: VideoProviderAdapter = {
-    id: "openai-json",
+export const openAICompatibleVideoProvider: VideoProviderAdapter = {
+    id: "openai-compatible",
     async createTask(input) {
         if (input.videoReferences.length || input.audioReferences.length) {
-            throw new Error("当前 JSON 视频接口暂不支持参考视频或参考音频，请移除参考素材或切换到 Seedance 模型");
+            throw new Error("OpenAI 兼容视频接口暂不支持参考视频或参考音频，请移除参考素材或切换渠道类型");
         }
-        const payload = await buildOpenAIJsonVideoPayload(input);
+        const payload = await buildOpenAICompatibleVideoPayload(input);
         try {
-            const created = unwrapEnvelope((await axios.post<ApiEnvelope<OpenAIVideoResponse>>(videoApiUrl(input.config, "/videos"), payload, { headers: videoHeaders(input.config), signal: input.options?.signal })).data, "接口没有返回视频任务");
-            return openAITaskFromResponse(created, input.model);
+            const response = await apiAxios<ApiEnvelope<OpenAIVideoResponse>>(input.config, { method: "POST", url: videoApiUrl(input.config, "/videos"), data: payload, headers: videoHeaders(input.config), signal: input.options?.signal });
+            const created = unwrapEnvelope<OpenAIVideoResponse>(response.data, "接口没有返回视频任务");
+            return openAICompatibleTaskFromResponse(created, input.model);
         } catch (error) {
             throw new Error(readVideoAxiosError(error, "视频任务创建失败"));
         }
     },
     async pollTask(config, task, options) {
-        return pollOpenAIJsonVideoTask(config, task, options?.signal);
+        return pollOpenAICompatibleVideoTask(config, task, options?.signal);
     },
 };
 
-async function buildOpenAIJsonVideoPayload(input: VideoCreateInput): Promise<OpenAIJsonVideoPayload> {
+async function buildOpenAICompatibleVideoPayload(input: VideoCreateInput): Promise<OpenAICompatibleVideoPayload> {
     const inputReference = await Promise.all(input.references.slice(0, 7).map(resolveImageReferenceUrl));
-    const payload: OpenAIJsonVideoPayload = {
+    const payload: OpenAICompatibleVideoPayload = {
         model: modelOptionName(input.model),
         prompt: input.prompt,
         seconds: normalizeVideoSeconds(input.config.videoSeconds),
     };
     const size = normalizeVideoSize(input.config.size);
     if (size) payload.size = size;
-    // 当前 JSON 上游约定参考图为 URL 数组：{ "input_reference": ["https://..."] }。
+    // NewAPI 等 OpenAI 兼容上游约定参考图为 URL 数组：{ "input_reference": ["https://..."] }。
     if (inputReference.length) payload.input_reference = inputReference;
     return payload;
 }
 
-async function pollOpenAIJsonVideoTask(config: AiConfig, task: VideoGenerationTask, signal?: AbortSignal): Promise<VideoGenerationTaskState> {
+async function pollOpenAICompatibleVideoTask(config: AiConfig, task: VideoGenerationTask, signal?: AbortSignal): Promise<VideoGenerationTaskState> {
     try {
-        const video = unwrapEnvelope((await axios.get<ApiEnvelope<OpenAIVideoResponse>>(videoApiUrl(config, `/videos/${task.id}`), { headers: videoHeaders(config), signal })).data, "接口没有返回视频任务");
+        const response = await apiAxios<ApiEnvelope<OpenAIVideoResponse>>(config, { method: "GET", url: videoApiUrl(config, `/videos/${task.id}`), headers: videoHeaders(config), signal });
+        const video = unwrapEnvelope<OpenAIVideoResponse>(response.data, "接口没有返回视频任务");
         if (video.status === "completed" || video.status === "succeeded") {
             const videoUrl = resolveOpenAIVideoUrl(video);
             if (!videoUrl) return { status: "failed", error: "视频任务成功但没有返回视频 URL" };
@@ -65,9 +66,9 @@ function resolveOpenAIVideoUrl(video: OpenAIVideoResponse) {
     return video.url || video.task_result?.videos?.find((item) => item.url)?.url || "";
 }
 
-function openAITaskFromResponse(created: OpenAIVideoResponse, model: string): VideoGenerationTask {
+function openAICompatibleTaskFromResponse(created: OpenAIVideoResponse, model: string): VideoGenerationTask {
     if (!created.id) throw new Error("视频接口没有返回任务 ID");
-    return { id: created.id, provider: "openai-json", model };
+    return { id: created.id, provider: "openai-compatible", model };
 }
 
 function normalizeVideoSeconds(value: string) {

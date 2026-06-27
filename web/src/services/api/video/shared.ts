@@ -19,7 +19,7 @@ export function assertVideoConfig(config: AiConfig, model: string) {
     if (!model) throw new Error("请先配置视频模型");
     if (!config.baseUrl.trim()) throw new Error("请先配置 Base URL");
     if (!config.apiKey.trim()) throw new Error("请先配置 API Key");
-    if (config.apiFormat === "gemini") throw new Error("Gemini 调用格式暂不支持视频生成，请使用 OpenAI 格式渠道");
+    if (config.channelType === "gemini") throw new Error("Gemini 官方渠道暂不支持视频生成，请使用 OpenAI 兼容、Seedance 官方或自定义任务协议渠道");
 }
 
 export function unwrapEnvelope<T>(payload: ApiEnvelope<T>, emptyMessage: string): T {

@@ -9,7 +9,7 @@ import { fetchChannelModels } from "@/services/api/image";
 import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
 import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
-import { createModelChannel, defaultBaseUrlForApiFormat, filterModelsByCapability, modelOptionLabel, modelOptionsFromChannels, normalizeModelOptionValue, useConfigStore, type AiConfig, type ApiCallFormat, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+import { apiFormatForChannelType, createModelChannel, defaultBaseUrlForChannelType, filterModelsByCapability, modelOptionLabel, modelOptionsFromChannels, normalizeModelOptionValue, useConfigStore, type AiConfig, type ApiProxyMode, type ChannelType, type CustomVideoProtocolConfig, type ModelCapability, type ModelChannel, type VideoChannelType } from "@/stores/use-config-store";
 
 type ModelGroup = {
     capability: ModelCapability;
@@ -34,9 +34,22 @@ const modelGroups: ModelGroup[] = [
     { capability: "audio", modelKey: "audioModel", modelsKey: "audioModels", defaultLabel: "默认音频模型", optionsLabel: "音频模型可选项" },
 ];
 
-const apiFormatOptions: Array<{ label: string; value: ApiCallFormat }> = [
-    { label: "OpenAI", value: "openai" },
-    { label: "Gemini", value: "gemini" },
+const compactApiProxyModeOptions: Array<{ label: string; value: ApiProxyMode }> = [
+    { label: "直连", value: "direct" },
+    { label: "代理", value: "nextjs" },
+];
+
+const channelTypeOptions: Array<{ label: string; value: ChannelType }> = [
+    { label: "OpenAI 兼容", value: "openai-compatible" },
+    { label: "Gemini 官方", value: "gemini" },
+    { label: "Seedance 官方", value: "seedance" },
+    { label: "自定义任务协议", value: "custom-task" },
+];
+
+const modelChannelTypeOptions: Array<{ label: string; value: VideoChannelType }> = [
+    { label: "OpenAI 兼容", value: "openai-compatible" },
+    { label: "Seedance 官方", value: "seedance" },
+    { label: "自定义任务协议", value: "custom-task" },
 ];
 
 const webdavDomainKeys: AppSyncDomainKey[] = ["canvas", "assets", "image-workbench", "video-workbench"];
@@ -97,9 +110,18 @@ export function AppConfigModal() {
         updateChannels(config.channels.map((channel) => (channel.id === id ? { ...channel, ...patch, models: patch.models ? uniqueModels(patch.models) : channel.models } : channel)));
     };
 
-    const updateChannelApiFormat = (channel: ModelChannel, apiFormat: ApiCallFormat) => {
-        const baseUrl = !channel.baseUrl.trim() || channel.baseUrl.trim() === defaultBaseUrlForApiFormat(channel.apiFormat) ? defaultBaseUrlForApiFormat(apiFormat) : channel.baseUrl;
-        updateChannel(channel.id, { apiFormat, baseUrl });
+    const updateChannelType = (channel: ModelChannel, channelType: ChannelType) => {
+        const baseUrl = !channel.baseUrl.trim() || channel.baseUrl.trim() === defaultBaseUrlForChannelType(channel.channelType) ? defaultBaseUrlForChannelType(channelType) : channel.baseUrl;
+        updateChannel(channel.id, { channelType, baseUrl });
+    };
+
+    const updateCustomVideoProtocol = (channel: ModelChannel, patch: Partial<CustomVideoProtocolConfig>) => {
+        updateChannel(channel.id, { customVideoProtocol: { ...channel.customVideoProtocol, ...patch } });
+    };
+
+    const updateModelChannelTypeOverride = (channel: ModelChannel, model: string, channelType?: VideoChannelType) => {
+        const next = channel.modelChannelTypeOverrides.filter((item) => item.model !== model);
+        updateChannel(channel.id, { modelChannelTypeOverrides: channelType ? [...next, { model, channelType }] : next });
     };
 
     const addChannel = () => {
@@ -256,16 +278,26 @@ export function AppConfigModal() {
                                     </div>
                                 </div>
                                 <div className="space-y-3">
-                                    {config.channels.map((channel) => (
-                                        <section key={channel.id} className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+                                    {config.channels.map((channel) => {
+                                        const usesCustomTask = channel.channelType === "custom-task" || channel.modelChannelTypeOverrides.some((item) => item.channelType === "custom-task");
+                                        return (
+                                            <section key={channel.id} className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
                                             <div className="mb-3 flex items-center justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <div className="truncate text-sm font-semibold">{channel.name || "未命名渠道"}</div>
                                                     <div className="mt-1 text-xs text-stone-500">
-                                                        {apiFormatLabel(channel.apiFormat)} · 已保存 {channel.models.length} 个模型
+                                                        {channelTypeLabel(channel.channelType)} · {apiProxyModeLabel(channel.proxyMode)} · 已保存 {channel.models.length} 个模型
                                                     </div>
                                                 </div>
-                                                <div className="flex shrink-0 gap-2">
+                                                <div className="flex shrink-0 items-center gap-2">
+                                                    <Select
+                                                        size="small"
+                                                        value={channel.proxyMode}
+                                                        options={compactApiProxyModeOptions}
+                                                        popupMatchSelectWidth={false}
+                                                        className="w-[82px]"
+                                                        onChange={(value: ApiProxyMode) => updateChannel(channel.id, { proxyMode: value })}
+                                                    />
                                                     <Button size="small" loading={loadingChannelId === channel.id} onClick={() => void refreshChannelModels(channel)}>
                                                         拉取模型
                                                     </Button>
@@ -276,8 +308,8 @@ export function AppConfigModal() {
                                                 <Form.Item label="渠道名称" className="mb-0">
                                                     <Input value={channel.name} onChange={(event) => updateChannel(channel.id, { name: event.target.value })} />
                                                 </Form.Item>
-                                                <Form.Item label="调用格式" className="mb-0">
-                                                    <Select value={channel.apiFormat} options={apiFormatOptions} onChange={(value: ApiCallFormat) => updateChannelApiFormat(channel, value)} />
+                                                <Form.Item label="渠道类型" className="mb-0">
+                                                    <Select value={channel.channelType} options={channelTypeOptions} onChange={(value: ChannelType) => updateChannelType(channel, value)} />
                                                 </Form.Item>
                                                 <Form.Item label="Base URL" className="mb-0">
                                                     <Input value={channel.baseUrl} onChange={(event) => updateChannel(channel.id, { baseUrl: event.target.value })} />
@@ -288,9 +320,90 @@ export function AppConfigModal() {
                                                 <Form.Item label="模型列表" className="mb-0 md:col-span-2">
                                                     <Select mode="tags" showSearch allowClear maxTagCount="responsive" placeholder="输入模型名，或点击拉取模型" value={channel.models} onChange={(models) => updateChannel(channel.id, { models })} />
                                                 </Form.Item>
+                                                {channel.models.length ? (
+                                                    <div className="md:col-span-2 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+                                                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                                            <div className="text-sm font-semibold">模型渠道类型覆盖</div>
+                                                            <div className="text-xs text-stone-500">不设置则跟随渠道类型</div>
+                                                        </div>
+                                                        <div className="grid gap-2 md:grid-cols-2">
+                                                            {channel.models.map((model) => {
+                                                                const override = channel.modelChannelTypeOverrides.find((item) => item.model === model);
+                                                                return (
+                                                                    <div key={model} className="grid grid-cols-[minmax(0,1fr)_180px] items-center gap-2 rounded-md bg-stone-50 px-2 py-2 dark:bg-stone-900/50">
+                                                                        <span className="truncate text-sm" title={model}>
+                                                                            {model}
+                                                                        </span>
+                                                                        <Select
+                                                                            allowClear
+                                                                            placeholder="跟随渠道"
+                                                                            size="small"
+                                                                            value={override?.channelType}
+                                                                            options={modelChannelTypeOptions}
+                                                                            onChange={(value?: VideoChannelType) => updateModelChannelTypeOverride(channel, model, value)}
+                                                                        />
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                                {usesCustomTask ? (
+                                                    <div className="md:col-span-2 rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+                                                        <div className="mb-3 text-sm font-semibold">自定义视频任务协议</div>
+                                                        <div className="grid gap-4 md:grid-cols-2">
+                                                            <Form.Item label="创建任务路径" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.createPath} placeholder="/v1/contents/generations/tasks" onChange={(event) => updateCustomVideoProtocol(channel, { createPath: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="查询任务路径" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.pollPath} placeholder="/v1/contents/generations/tasks/{{taskId}}" onChange={(event) => updateCustomVideoProtocol(channel, { pollPath: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="查询方式" className="mb-0">
+                                                                <Select
+                                                                    value={channel.customVideoProtocol.pollMethod}
+                                                                    options={[
+                                                                        { label: "GET", value: "GET" },
+                                                                        { label: "POST", value: "POST" },
+                                                                    ]}
+                                                                    onChange={(value: "GET" | "POST") => updateCustomVideoProtocol(channel, { pollMethod: value })}
+                                                                />
+                                                            </Form.Item>
+                                                            <Form.Item label="创建 Body 模板" className="mb-0 md:col-span-2">
+                                                                <Input.TextArea rows={7} value={channel.customVideoProtocol.createBodyTemplate} onChange={(event) => updateCustomVideoProtocol(channel, { createBodyTemplate: event.target.value })} />
+                                                            </Form.Item>
+                                                            {channel.customVideoProtocol.pollMethod === "POST" ? (
+                                                                <Form.Item label="查询 Body 模板" className="mb-0 md:col-span-2">
+                                                                    <Input.TextArea rows={4} value={channel.customVideoProtocol.pollBodyTemplate} onChange={(event) => updateCustomVideoProtocol(channel, { pollBodyTemplate: event.target.value })} />
+                                                                </Form.Item>
+                                                            ) : null}
+                                                            <Form.Item label="任务 ID 字段" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.taskIdPath} placeholder="id" onChange={(event) => updateCustomVideoProtocol(channel, { taskIdPath: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="状态字段" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.statusPath} placeholder="status" onChange={(event) => updateCustomVideoProtocol(channel, { statusPath: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="视频 URL 字段" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.resultUrlPath} placeholder="content.video_url" onChange={(event) => updateCustomVideoProtocol(channel, { resultUrlPath: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="错误信息字段" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.errorMessagePath} placeholder="error.message" onChange={(event) => updateCustomVideoProtocol(channel, { errorMessagePath: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="处理中状态" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.pendingStatuses} placeholder="queued,running,in_progress" onChange={(event) => updateCustomVideoProtocol(channel, { pendingStatuses: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="成功状态" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.completedStatuses} placeholder="succeeded,completed" onChange={(event) => updateCustomVideoProtocol(channel, { completedStatuses: event.target.value })} />
+                                                            </Form.Item>
+                                                            <Form.Item label="失败状态" className="mb-0">
+                                                                <Input value={channel.customVideoProtocol.failedStatuses} placeholder="failed,cancelled,expired" onChange={(event) => updateCustomVideoProtocol(channel, { failedStatuses: event.target.value })} />
+                                                            </Form.Item>
+                                                        </div>
+                                                    </div>
+                                                ) : null}
                                             </div>
-                                        </section>
-                                    ))}
+                                            </section>
+                                        );
+                                    })}
                                 </div>
                             </Form>
                         ),
@@ -435,18 +548,30 @@ export function AppConfigModal() {
 }
 
 function withChannels(config: AiConfig, channels: ModelChannel[]): AiConfig {
-    const models = modelOptionsFromChannels(channels);
+    const nextChannels = channels.map((channel) => {
+        const models = uniqueModels(channel.models);
+        return {
+            ...channel,
+            models,
+            modelChannelTypeOverrides: channel.modelChannelTypeOverrides.filter((item) => models.includes(item.model)),
+        };
+    });
+    const models = modelOptionsFromChannels(nextChannels);
     const imageModels = keepOrSuggest(config.imageModels, filterModelsByCapability(models, "image"), models);
     const videoModels = keepOrSuggest(config.videoModels, filterModelsByCapability(models, "video"), models);
     const textModels = keepOrSuggest(config.textModels, filterModelsByCapability(models, "text"), models);
     const audioModels = keepOrSuggest(config.audioModels, filterModelsByCapability(models, "audio"), models);
     return {
         ...config,
-        channels,
+        channels: nextChannels,
         models,
-        baseUrl: channels[0]?.baseUrl || config.baseUrl,
-        apiKey: channels[0]?.apiKey || config.apiKey,
-        apiFormat: channels[0]?.apiFormat || config.apiFormat,
+        baseUrl: nextChannels[0]?.baseUrl || config.baseUrl,
+        apiKey: nextChannels[0]?.apiKey || config.apiKey,
+        channelType: nextChannels[0]?.channelType || config.channelType,
+        apiFormat: apiFormatForChannelType(nextChannels[0]?.channelType || config.channelType),
+        proxyMode: nextChannels[0]?.proxyMode || config.proxyMode,
+        customVideoProtocol: nextChannels[0]?.customVideoProtocol || config.customVideoProtocol,
+        modelChannelTypeOverrides: nextChannels[0]?.modelChannelTypeOverrides || config.modelChannelTypeOverrides,
         imageModels,
         videoModels,
         textModels,
@@ -477,8 +602,15 @@ function uniqueModels(models: string[]) {
     return Array.from(new Set(models.map((model) => model.trim()).filter(Boolean)));
 }
 
-function apiFormatLabel(apiFormat: ApiCallFormat) {
-    return apiFormat === "gemini" ? "Gemini" : "OpenAI";
+function apiProxyModeLabel(proxyMode: ApiProxyMode) {
+    return proxyMode === "nextjs" ? "Next.js 代理" : "浏览器直连";
+}
+
+function channelTypeLabel(channelType: ChannelType) {
+    if (channelType === "gemini") return "Gemini 官方";
+    if (channelType === "seedance") return "Seedance 官方";
+    if (channelType === "custom-task") return "自定义任务协议";
+    return "OpenAI 兼容";
 }
 
 function formatWebdavTime(value: string) {

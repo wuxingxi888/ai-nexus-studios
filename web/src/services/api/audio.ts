@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { audioMimeType, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
 import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+import { apiAxios } from "@/services/api/transport";
 import { buildApiUrl, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 
 type RequestOptions = { signal?: AbortSignal };
@@ -25,9 +26,10 @@ export async function requestAudioGeneration(config: AiConfig, prompt: string, o
     const instructions = config.audioInstructions.trim();
 
     try {
-        const response = await axios.post<Blob>(
-            aiApiUrl(requestConfig, "/audio/speech"),
-            {
+        const response = await apiAxios<Blob>(requestConfig, {
+            method: "POST",
+            url: aiApiUrl(requestConfig, "/audio/speech"),
+            data: {
                 model,
                 input: prompt,
                 voice: normalizeAudioVoiceValue(config.audioVoice),
@@ -35,8 +37,10 @@ export async function requestAudioGeneration(config: AiConfig, prompt: string, o
                 speed: Number(normalizeAudioSpeedValue(config.audioSpeed)),
                 ...(instructions ? { instructions } : {}),
             },
-            { headers: aiHeaders(requestConfig), responseType: "blob", signal: options?.signal },
-        );
+            headers: aiHeaders(requestConfig),
+            responseType: "blob",
+            signal: options?.signal,
+        });
         await assertAudioBlob(response.data);
         return response.data.type.startsWith("audio/") ? response.data : new Blob([response.data], { type: audioMimeType(format) });
     } catch (error) {
@@ -53,7 +57,7 @@ function assertAudioConfig(config: AiConfig, model: string) {
     if (!model) throw new Error("请先配置音频模型");
     if (!config.baseUrl.trim()) throw new Error("请先配置 Base URL");
     if (!config.apiKey.trim()) throw new Error("请先配置 API Key");
-    if (config.apiFormat === "gemini") throw new Error("Gemini 调用格式暂不支持音频生成，请使用 OpenAI 格式渠道");
+    if (config.channelType === "gemini") throw new Error("Gemini 官方渠道暂不支持音频生成，请使用 OpenAI 兼容渠道");
 }
 
 async function assertAudioBlob(blob: Blob) {

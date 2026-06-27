@@ -2,7 +2,7 @@ import type { AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
-export type VideoProviderId = "openai-json" | "seedance" | "openai";
+export type VideoProviderId = "openai-compatible" | "seedance" | "custom-task";
 
 export type VideoRequestOptions = {
     signal?: AbortSignal;
@@ -33,7 +33,7 @@ export type VideoGenerationTask = {
 export type VideoGenerationTaskState = { status: "pending" } | { status: "completed"; result: VideoGenerationResult } | { status: "failed"; error: string };
 
 export type VideoProviderAdapter = {
-    id: Exclude<VideoProviderId, "openai">;
+    id: VideoProviderId;
     createTask(input: VideoCreateInput): Promise<VideoGenerationTask>;
     pollTask(config: AiConfig, task: VideoGenerationTask, options?: VideoRequestOptions): Promise<VideoGenerationTaskState>;
 };

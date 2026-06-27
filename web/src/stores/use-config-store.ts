@@ -6,13 +6,39 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 export type ApiCallFormat = "openai" | "gemini";
+export type ApiProxyMode = "direct" | "nextjs";
+// channelType 是用户配置的渠道协议；apiFormat 仅作为图片/文本等内部请求格式派生值。
+export type ChannelType = "openai-compatible" | "gemini" | "seedance" | "custom-task";
+export type VideoChannelType = Exclude<ChannelType, "gemini">;
+export type ModelChannelTypeOverride = {
+    model: string;
+    channelType: VideoChannelType;
+};
+
+export type CustomVideoProtocolConfig = {
+    createPath: string;
+    createBodyTemplate: string;
+    pollMethod: "GET" | "POST";
+    pollPath: string;
+    pollBodyTemplate: string;
+    taskIdPath: string;
+    statusPath: string;
+    resultUrlPath: string;
+    errorMessagePath: string;
+    pendingStatuses: string;
+    completedStatuses: string;
+    failedStatuses: string;
+};
 
 export type ModelChannel = {
     id: string;
     name: string;
     baseUrl: string;
     apiKey: string;
-    apiFormat: ApiCallFormat;
+    channelType: ChannelType;
+    proxyMode: ApiProxyMode;
+    customVideoProtocol: CustomVideoProtocolConfig;
+    modelChannelTypeOverrides: ModelChannelTypeOverride[];
     models: string[];
 };
 
@@ -20,7 +46,11 @@ export type AiConfig = {
     channelMode: "remote" | "local";
     baseUrl: string;
     apiKey: string;
+    channelType: ChannelType;
     apiFormat: ApiCallFormat;
+    proxyMode: ApiProxyMode;
+    customVideoProtocol: CustomVideoProtocolConfig;
+    modelChannelTypeOverrides: ModelChannelTypeOverride[];
     channels: ModelChannel[];
     model: string;
     imageModel: string;
@@ -61,19 +91,50 @@ export type ModelCapability = "image" | "video" | "text" | "audio";
 const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+const SEEDANCE_BASE_URL = "https://ark.cn-beijing.volces.com/api/plan/v3";
+
+export const defaultCustomVideoProtocolConfig: CustomVideoProtocolConfig = {
+    createPath: "/v1/contents/generations/tasks",
+    createBodyTemplate: JSON.stringify(
+        {
+            model: "{{model}}",
+            prompt: "{{prompt}}",
+            input_reference: "{{imageUrls}}",
+        },
+        null,
+        2,
+    ),
+    pollMethod: "GET",
+    pollPath: "/v1/contents/generations/tasks/{{taskId}}",
+    pollBodyTemplate: "",
+    taskIdPath: "id",
+    statusPath: "status",
+    resultUrlPath: "content.video_url",
+    errorMessagePath: "error.message",
+    pendingStatuses: "queued,running,in_progress",
+    completedStatuses: "succeeded,completed",
+    failedStatuses: "failed,cancelled,expired",
+};
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
     baseUrl: OPENAI_BASE_URL,
     apiKey: "",
+    channelType: "openai-compatible",
     apiFormat: "openai",
+    proxyMode: "direct",
+    customVideoProtocol: defaultCustomVideoProtocolConfig,
+    modelChannelTypeOverrides: [],
     channels: [
         {
             id: "default",
             name: "默认渠道",
             baseUrl: OPENAI_BASE_URL,
             apiKey: "",
-            apiFormat: "openai",
+            channelType: "openai-compatible",
+            proxyMode: "direct",
+            customVideoProtocol: defaultCustomVideoProtocolConfig,
+            modelChannelTypeOverrides: [],
             models: ["gpt-image-2", "grok-imagine-video", "gpt-5.5", "gpt-4o-mini-tts"],
         },
     ],
@@ -212,9 +273,10 @@ export const useConfigStore = create<ConfigStore>()(
                     config: {
                         ...config,
                         channelMode: "local",
-                        apiFormat: normalizeApiFormat(config.apiFormat),
                         channels,
                         models,
+                        channelType: channels[0]?.channelType || defaultConfig.channelType,
+                        apiFormat: apiFormatForChannelType(channels[0]?.channelType || defaultConfig.channelType),
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
                         videoModel: normalizeModelOptionValue(config.videoModel || "grok-imagine-video", channels),
                         textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
@@ -252,13 +314,16 @@ export function useEffectiveConfig() {
 }
 
 export function createModelChannel(channel?: Partial<ModelChannel>): ModelChannel {
-    const apiFormat = normalizeApiFormat(channel?.apiFormat);
+    const channelType = normalizeChannelType(channel?.channelType);
     return {
         id: channel?.id?.trim() || nanoid(),
         name: channel?.name?.trim() || "新渠道",
-        baseUrl: channel?.baseUrl?.trim() || defaultBaseUrlForApiFormat(apiFormat),
+        baseUrl: channel?.baseUrl?.trim() || defaultBaseUrlForChannelType(channelType),
         apiKey: channel?.apiKey || "",
-        apiFormat,
+        channelType,
+        proxyMode: normalizeProxyMode(channel?.proxyMode),
+        customVideoProtocol: normalizeCustomVideoProtocol(channel?.customVideoProtocol),
+        modelChannelTypeOverrides: normalizeModelChannelTypeOverrides(channel?.modelChannelTypeOverrides),
         models: uniqueRawModels(channel?.models || []),
     };
 }
@@ -300,25 +365,32 @@ export function normalizeModelOptionValue(value: string | undefined, channels: M
         const channel = channels.find((item) => item.id === decoded.channelId);
         return channel && channel.models.includes(decoded.model) ? model : "";
     }
-    const channel = channels.find((item) => item.models.includes(decoded?.model || model)) || channels[0];
-    return channel && channel.models.includes(decoded?.model || model) ? encodeChannelModel(channel.id, decoded?.model || model) : model;
+    const channel = channels.find((item) => item.models.includes(model)) || channels[0];
+    return channel && channel.models.includes(model) ? encodeChannelModel(channel.id, model) : model;
 }
 
 export function resolveModelChannel(config: AiConfig, value: string) {
     const decoded = decodeChannelModel(value);
     const model = decoded?.model || value;
     const matched = decoded ? config.channels.find((channel) => channel.id === decoded.channelId) : config.channels.find((channel) => channel.models.includes(model));
-    return matched || config.channels[0] || createModelChannel({ id: "default", name: "默认渠道", baseUrl: config.baseUrl, apiKey: config.apiKey, apiFormat: config.apiFormat, models: config.models.map(modelOptionName) });
+    return matched || config.channels[0] || createModelChannel({ id: "default", name: "默认渠道", baseUrl: config.baseUrl, apiKey: config.apiKey, channelType: config.channelType, proxyMode: config.proxyMode, customVideoProtocol: config.customVideoProtocol, modelChannelTypeOverrides: config.modelChannelTypeOverrides, models: config.models.map(modelOptionName) });
 }
 
 export function resolveModelRequestConfig(config: AiConfig, value: string) {
     const channel = resolveModelChannel(config, value);
+    const model = modelOptionName(value || config.model);
+    const override = channel.modelChannelTypeOverrides.find((item) => item.model === model);
+    const channelType = override?.channelType || channel.channelType;
     return {
         ...config,
-        model: modelOptionName(value || config.model),
+        model,
         baseUrl: channel.baseUrl,
         apiKey: channel.apiKey,
-        apiFormat: channel.apiFormat,
+        channelType,
+        apiFormat: apiFormatForChannelType(channelType),
+        proxyMode: channel.proxyMode,
+        customVideoProtocol: channel.customVideoProtocol,
+        modelChannelTypeOverrides: channel.modelChannelTypeOverrides,
     };
 }
 
@@ -339,7 +411,10 @@ function normalizeChannels(config: AiConfig) {
                 name: "默认渠道",
                 baseUrl: config.baseUrl || defaultConfig.baseUrl,
                 apiKey: config.apiKey || "",
-                apiFormat: config.apiFormat || defaultConfig.apiFormat,
+                channelType: config.channelType || defaultConfig.channelType,
+                proxyMode: config.proxyMode || defaultConfig.proxyMode,
+                customVideoProtocol: config.customVideoProtocol || defaultConfig.customVideoProtocol,
+                modelChannelTypeOverrides: config.modelChannelTypeOverrides || defaultConfig.modelChannelTypeOverrides,
                 models: uniqueRawModels([
                     ...(config.models || []),
                     config.model,
@@ -354,12 +429,48 @@ function normalizeChannels(config: AiConfig) {
     return channels.map((channel) => ({ ...channel, models: uniqueRawModels(channel.models) }));
 }
 
-export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
-    return apiFormat === "gemini" ? GEMINI_BASE_URL : OPENAI_BASE_URL;
+export function defaultBaseUrlForChannelType(channelType: ChannelType) {
+    if (channelType === "gemini") return GEMINI_BASE_URL;
+    if (channelType === "seedance") return SEEDANCE_BASE_URL;
+    return OPENAI_BASE_URL;
 }
 
-function normalizeApiFormat(apiFormat: unknown): ApiCallFormat {
-    return apiFormat === "gemini" ? "gemini" : "openai";
+export function apiFormatForChannelType(channelType: ChannelType): ApiCallFormat {
+    return channelType === "gemini" ? "gemini" : "openai";
+}
+
+function normalizeProxyMode(proxyMode: unknown): ApiProxyMode {
+    return proxyMode === "nextjs" ? "nextjs" : "direct";
+}
+
+function normalizeChannelType(channelType: unknown): ChannelType {
+    return channelType === "gemini" || channelType === "seedance" || channelType === "custom-task" ? channelType : "openai-compatible";
+}
+
+function normalizeCustomVideoProtocol(value: unknown): CustomVideoProtocolConfig {
+    const config = value && typeof value === "object" ? (value as Partial<CustomVideoProtocolConfig>) : {};
+    return {
+        ...defaultCustomVideoProtocolConfig,
+        ...config,
+        pollMethod: config.pollMethod === "POST" ? "POST" : "GET",
+    };
+}
+
+function normalizeModelChannelTypeOverrides(value: unknown): ModelChannelTypeOverride[] {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const record = item as Partial<ModelChannelTypeOverride>;
+            const model = modelOptionName(record.model || "").trim();
+            const channelType = normalizeVideoChannelType(record.channelType);
+            return model ? { model, channelType } : null;
+        })
+        .filter((item): item is ModelChannelTypeOverride => Boolean(item));
+}
+
+function normalizeVideoChannelType(channelType: unknown): VideoChannelType {
+    return channelType === "seedance" || channelType === "custom-task" ? channelType : "openai-compatible";
 }
 
 function uniqueRawModels(models: string[]) {

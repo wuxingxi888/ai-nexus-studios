@@ -1,5 +1,4 @@
-import axios from "axios";
-
+import { apiAxios } from "@/services/api/transport";
 import { modelOptionName, type AiConfig } from "@/stores/use-config-store";
 import { boolConfig, buildSeedancePromptText, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceVideoReferenceError, SEEDANCE_REFERENCE_LIMITS } from "@/services/api/video/seedance";
 import { resolveAudioReferenceUrl, resolveImageReferenceUrl, resolveVideoReferenceUrl } from "../references";
@@ -23,7 +22,8 @@ export const seedanceVideoProvider: VideoProviderAdapter = {
         };
 
         try {
-            const created = unwrapEnvelope((await axios.post<ApiEnvelope<SeedanceTaskResponse>>(seedanceProxyUrl(), payload, { headers: seedanceProxyHeaders(input.config, seedanceApiUrl(input.config)), signal: input.options?.signal })).data, "Seedance 接口没有返回任务");
+            const response = await apiAxios<ApiEnvelope<SeedanceTaskResponse>>(input.config, { method: "POST", url: seedanceApiUrl(input.config), data: payload, headers: videoHeaders(input.config), signal: input.options?.signal });
+            const created = unwrapEnvelope<SeedanceTaskResponse>(response.data, "Seedance 接口没有返回任务");
             if (!created.id) throw new Error("Seedance 接口没有返回任务 ID");
             return { id: created.id, provider: "seedance", model: input.model };
         } catch (error) {
@@ -53,7 +53,8 @@ async function buildSeedanceContent(input: VideoCreateInput) {
 
 async function pollSeedanceTask(config: AiConfig, task: VideoGenerationTask, signal?: AbortSignal): Promise<VideoGenerationTaskState> {
     try {
-        const state = unwrapEnvelope((await axios.get<ApiEnvelope<SeedanceTaskResponse>>(seedanceProxyUrl(), { headers: seedanceProxyHeaders(config, seedanceApiUrl(config, task.id)), signal })).data, "Seedance 接口没有返回任务");
+        const response = await apiAxios<ApiEnvelope<SeedanceTaskResponse>>(config, { method: "GET", url: seedanceApiUrl(config, task.id), headers: videoHeaders(config), signal });
+        const state = unwrapEnvelope<SeedanceTaskResponse>(response.data, "Seedance 接口没有返回任务");
         if (state.status === "succeeded") {
             const url = state.content?.video_url;
             if (!url) return { status: "failed", error: "Seedance 任务成功但没有返回视频 URL" };
@@ -85,15 +86,4 @@ function seedanceApiUrl(config: AiConfig, taskId?: string) {
     const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
     const path = `/contents/generations/tasks${taskId ? `/${encodeURIComponent(taskId)}` : ""}`;
     return baseUrl.toLowerCase().endsWith("/api/plan/v3") ? `${baseUrl}${path}` : `${baseUrl}/v1${path}`;
-}
-
-function seedanceProxyUrl() {
-    return "/api/seedance-proxy";
-}
-
-function seedanceProxyHeaders(config: AiConfig, target: string) {
-    return {
-        ...videoHeaders(config),
-        "x-seedance-target": target,
-    };
 }
